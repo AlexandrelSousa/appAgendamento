@@ -1,6 +1,7 @@
 const express = require ('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const cors = require('cors');
 
 require('dotenv').config();
 
@@ -9,7 +10,11 @@ const PORT = 3030;
 const app = express();
 
 app.use(express.json())
-
+app.use(cors());
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send('Algo deu errado!');
+});
 //configurando o banco de dados
 const { Pool } = require('pg');
 
@@ -53,7 +58,7 @@ app.post('/login', async (req, res) => {
     res.json({ acessToken: acessToken });
 });
 
-app.post('/register', async (req, res) => {
+app.post('/cadastro', async (req, res) => {
     try {
         const user = {
             email: req.body.email,
@@ -64,6 +69,8 @@ app.post('/register', async (req, res) => {
         };
 
         if (!req.body.username) {
+            const err = new Error('Nome de usuário é obrigatório!');
+            err.status = 400; // Define o status do erro
             return res.status(400).send('Nome de usuário é obrigatório!');
         }
         if(!req.body.senha){
