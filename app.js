@@ -53,7 +53,7 @@ app.post('/login', async (req, res) => {
       return res.status(401).json({message: 'Nome de usuário ou senha incorretos'});
     }
 
-    const acessToken = jwt.sign({username: user.rows[0].nome}, process.env.ACESS_TOKEN_SECRET);
+    const acessToken = jwt.sign({username: user.rows[0].nome, id: user.rows[0].id}, process.env.ACESS_TOKEN_SECRET);
 
     res.json({ acessToken: acessToken });
 });
@@ -106,3 +106,71 @@ app.post('/cadastro', async (req, res) => {
         res.status(500).send('Erro ao registrar usuário.');
     }
 })
+
+// Endpoint para atualizar um cliente
+app.put('/clientes', async (req, res) => {
+    const token = req.headers['authorization']
+    const { nome, senha, telefone, email } = req.body;
+
+    try {
+        const clientId = jwt.decode(token).id;
+        // Verifica se o cliente existe no banco de dados
+        const clientExists = await pool.query('SELECT * FROM cliente WHERE id = $1', [clientId]);
+        const hashedPassword = await bcrypt.hash(req.body.senha, 10);
+        if (clientExists.rows.length === 0) {
+            return res.status(404).json({ error: 'Cliente não encontrado' });
+        }
+
+        // Atualiza os dados do cliente
+        const updateQuery = 'UPDATE cliente SET nome = $1, senha = $2, telefone = $3, email = $4 WHERE id = $5';
+        await pool.query(updateQuery, [nome, hashedPassword, telefone, email, clientId]);
+
+        res.json({ message: 'Cliente atualizado com sucesso' });
+    } catch (error) {
+        console.error('Erro ao atualizar cliente:', error);
+        res.status(500).json({ error: 'Erro ao atualizar cliente' });
+    }
+});
+
+// Endpoint para deletar um cliente
+app.delete('/clientes', async (req, res) => {
+    const token = req.headers['authorization']
+    try {
+        const clientId = jwt.decode(token).id;
+        // Verifica se o cliente existe no banco de dados
+        const clientExists = await pool.query('SELECT * FROM cliente WHERE id = $1', [clientId]);
+        if (clientExists.rows.length === 0) {
+            return res.status(404).json({ error: 'Cliente não encontrado' });
+        }
+
+        // Deleta o cliente do banco de dados
+        await pool.query('DELETE FROM cliente WHERE id = $1', [clientId]);
+
+        res.json({ message: 'Cliente deletado com sucesso' });
+    } catch (error) {
+        console.error('Erro ao deletar cliente:', error);
+        res.status(500).json({ error: 'Erro ao deletar cliente' });
+    }
+});
+
+// Endpoint para obter as informações de um usuário
+app.get('/clientes', async (req, res) => {
+    const token = req.headers['authorization'];
+
+    try {
+        const clientId = jwt.decode(token).id;
+        // Consulta o banco de dados para obter as informações do usuário com base no ID
+        const client = await pool.query('SELECT * FROM cliente WHERE id = $1', [clientId]);
+
+        // Verifica se o usuário foi encontrado
+        if (client.rows.length === 0) {
+            return res.status(404).json({ error: 'Usuário não encontrado' });
+        }
+
+        // Retorna as informações do usuário
+        res.json(client.rows[0]);
+    } catch (error) {
+        console.error('Erro ao obter informações do usuário:', error);
+        res.status(500).json({ error: 'Erro ao obter informações do usuário' });
+    }
+});
