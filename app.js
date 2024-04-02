@@ -39,26 +39,35 @@ app.listen(PORT, () => {
 })
 
 app.post('/login', async (req, res) => {
-    const {email, senha} = req.body;
+    const {emailOuCNPJ, senha} = req.body;
 
     //verifica se o nome de usuário existe no banco de dados
-    const user = await pool.query('SELECT * FROM cliente WHERE email = $1', [email]);
-    if(user.rows.length === 0){
-      return res.status(401).json({message: 'Email ou senha incorretos.'});
+    const user = await pool.query('SELECT * FROM cliente WHERE email = $1', [emailOuCNPJ]);
+    const cnpj = await pool.query('SELECT * FROM empreendedora WHERE cnpj = $1', [emailOuCNPJ]);
+
+    if(user.rows.length === 0 && cnpj.rows.length === 0){
+      return res.status(401).json({message: 'Dados de login incorretos.'});
+    } else if(user.rows.length === 0){
+        const validPassword = await bcrypt.compare(senha, cnpj.rows[0].senha);
+        if(!validPassword){
+            return res.status(401).json({message: 'Nome de usuário ou senha incorretos'});
+          }
+        const acessToken = jwt.sign({username: cnpj.rows[0].nome, cnpj: cnpj.rows[0].cnpj}, process.env.ACESS_TOKEN_SECRET);
+
+        res.json({ acessToken: acessToken });
+    } else{
+        const validPassword = await bcrypt.compare(senha, user.rows[0].senha);
+        if(!validPassword){
+            return res.status(401).json({message: 'Nome de usuário ou senha incorretos'});
+        }
+        const acessToken = jwt.sign({username: user.rows[0].nome, id: user.rows[0].id}, process.env.ACESS_TOKEN_SECRET);
+
+        res.json({ acessToken: acessToken });
     }
-
-    //verificar se a senha está correta
-    const validPassword = await bcrypt.compare(senha, user.rows[0].senha);
-    if(!validPassword){
-      return res.status(401).json({message: 'Nome de usuário ou senha incorretos'});
-    }
-
-    const acessToken = jwt.sign({username: user.rows[0].nome, id: user.rows[0].id}, process.env.ACESS_TOKEN_SECRET);
-
-    res.json({ acessToken: acessToken });
+    
 });
 
-app.post('/cadastro', async (req, res) => {
+app.post('/clientes/cadastro', async (req, res) => {
     try {
         const user = {
             email: req.body.email,
@@ -172,5 +181,116 @@ app.get('/clientes', async (req, res) => {
     } catch (error) {
         console.error('Erro ao obter informações do usuário:', error);
         res.status(500).json({ error: 'Erro ao obter informações do usuário' });
+    }
+});
+
+app.post('/empresa/cadastrar', async (req, res) => {
+    try {
+        const empresa = {
+            cnpj: req.body.cnpj,
+            senha: req.body.senha,
+            nome: req.body.nome,
+            telefone: req.body.telefone,
+            cidade: req.body.cidade,
+            bairro: req.body.bairro,
+            logradouro: req.body.logradouro,
+            numero: req.body.numero,
+            descricao: req.body.descricao,
+            formas_pgmnto: req.body.formas_pgmnto,
+            classificacao: req.body.classificacao,
+            horario_func: req.body.horario_func,
+            dias_func: req.body.dias_func,
+        };
+
+// Verifica se o CNPJ é fornecido
+for (const iterator of Object.keys(req.body) ) {
+    console.log(iterator);
+    if(!req.body[iterator]){
+        const err = new Error(iterator+' é obrigatório!');
+        err.status = 400;
+        return res.status(400).json({message: iterator+' é obrigatório!'})
+    }
+}
+        //verificando se o email já existe
+        const cnpjJaExistente = await pool.query('SELECT * FROM empreendedora WHERE cnpj = $1', [req.body.cnpj]);
+        if(cnpjJaExistente.rows.length > 0) {
+          return res.status(400).json({message: 'O CNPJ fornecido já está em uso.'})
+        }
+
+        // Hash da senha
+        const hashedPassword = await bcrypt.hash(req.body.senha, 10);
+        
+        const insertUserQuery = 'INSERT INTO empreendedora (cnpj, senha, nome, telefone, cidade, bairro, logradouro, numero, descricao, formas_pgmnto, classificacao, horario_func, dias_func) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)';
+        await pool.query(insertUserQuery, [empresa.cnpj, hashedPassword, empresa.nome, empresa.telefone, empresa.cidade, empresa.bairro, empresa.logradouro, empresa.numero, empresa.descricao, empresa.formas_pgmnto, empresa.classificacao, empresa.horario_func, empresa.dias_func]);
+        res.status(201).send('Empresa registrada com sucesso.');
+      } catch (error) {
+        console.error('Erro ao registrar empresa:', error);
+        res.status(500).send('Erro ao registrar empresa.');
+    }
+})
+
+app.get('/empresa', async (req, res) => {
+    const token = req.headers['authorization'];
+
+    try {
+        const empresaCnpj = jwt.decode(token).cnpj;
+        console.log(empresaCnpj)
+        // Consulta o banco de dados para obter as informações do usuário com base no ID
+        const client = await pool.query('SELECT * FROM empreendedora WHERE cnpj = $1', [empresaCnpj]);
+
+        // Verifica se o usuário foi encontrado
+        if (client.rows.length === 0) {
+            return res.status(404).json({ error: 'Usuário não encontrado' });
+        }
+
+        // Retorna as informações do usuário
+        res.json(client.rows[0]);
+    } catch (error) {
+        console.error('Erro ao obter informações do usuário:', error);
+        res.status(500).json({ error: 'Erro ao obter informações do usuário' });
+    }
+});
+
+app.put('/empresa', async (req, res) => {
+    const token = req.headers['authorization']
+    const {senha, nome, telefone, cidade, bairro, logradouro, numero, descricao, formas_pgmnto, classificacao, horario_func, dias_func} = req.body;
+
+    try {
+        const empresaId = jwt.decode(token).cnpj;
+        // Verifica se o cliente existe no banco de dados
+        const clientExists = await pool.query('SELECT * FROM empreendedora WHERE cnpj = $1', [empresaId]);
+        const hashedPassword = await bcrypt.hash(req.body.senha, 10);
+        if (clientExists.rows.length === 0) {
+            return res.status(404).json({ error: 'Empresa não encontrada' });
+        }
+
+        // Atualiza os dados do cliente
+        const updateQuery = 'UPDATE empreendedora SET senha = $1, nome = $2, telefone = $3, cidade = $4, bairro = $5, logradouro = $6, numero = $7, descricao = $8, formas_pgmnto = $9, classificacao = $10, horario_func = $11, dias_func = $12  WHERE cnpj = $13';
+        await pool.query(updateQuery, [hashedPassword, nome, telefone, cidade, bairro, logradouro, numero, descricao, formas_pgmnto, classificacao, horario_func, dias_func, empresaId]);
+
+        res.json({ message: 'Informações da empresa atualizadas com sucesso' });
+    } catch (error) {
+        console.error('Erro ao atualizar empresa:', error);
+        res.status(500).json({ error: 'Erro ao atualizar Informações da empresa' });
+    }
+});
+
+app.delete('/empresa', async (req, res) => {
+    const token = req.headers['authorization']
+    try {
+        const empresaId = jwt.decode(token).cnpj;
+        // Verifica se o cliente existe no banco de dados
+        const empresaExists = await pool.query('SELECT * FROM empreendedora WHERE cnpj = $1', [empresaId]);
+        if (empresaExists.rows.length === 0) {
+            return res.status(404).json({ error: 'Empresa não encontrada' });
+        }
+
+        // Deleta o cliente do banco de dados
+        await pool.query('DELETE FROM empreendedora WHERE cnpj = $1', [empresaId]);
+
+        res.json({ message: 'Empresa deletada com sucesso' });
+    } catch (error) {
+        console.error('Erro ao deletar empresa:', error);
+        res.status(500).json({ error: 'Erro ao deletar empresa' });
     }
 });
