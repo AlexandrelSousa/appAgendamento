@@ -17,6 +17,7 @@ app.use((err, req, res, next) => {
 });
 //configurando o banco de dados
 const { Pool } = require('pg');
+const { parse } = require('dotenv');
 
 const pool = new Pool({
     host: "localhost",
@@ -51,7 +52,7 @@ app.post('/login', async (req, res) => {
         const validPassword = await bcrypt.compare(senha, cnpj.rows[0].senha);
         if(!validPassword){
             return res.status(401).json({message: 'Nome de usuário ou senha incorretos'});
-          }
+        }
         const acessToken = jwt.sign({username: cnpj.rows[0].nome, cnpj: cnpj.rows[0].cnpj}, process.env.ACESS_TOKEN_SECRET);
 
         res.json({ acessToken: acessToken });
@@ -151,8 +152,8 @@ app.delete('/clientes', async (req, res) => {
         if (clientExists.rows.length === 0) {
             return res.status(404).json({ error: 'Cliente não encontrado' });
         }
-
         // Deleta o cliente do banco de dados
+        await pool.query('DELETE FROM agendamento WHERE id_cli = $1', [clientId]);
         await pool.query('DELETE FROM cliente WHERE id = $1', [clientId]);
 
         res.json({ message: 'Cliente deletado com sucesso' });
@@ -178,6 +179,7 @@ app.get('/clientes', async (req, res) => {
 
         // Retorna as informações do usuário
         res.json(client.rows[0]);
+
     } catch (error) {
         console.error('Erro ao obter informações do usuário:', error);
         res.status(500).json({ error: 'Erro ao obter informações do usuário' });
@@ -196,9 +198,9 @@ app.post('/empresa/cadastrar', async (req, res) => {
             logradouro: req.body.logradouro,
             numero: req.body.numero,
             descricao: req.body.descricao,
-            formas_pgmnto: req.body.formas_pgmnto,
             classificacao: req.body.classificacao,
-            horario_func: req.body.horario_func,
+            inicio_expediente: req.body.inicio_expediente,
+            fim_expediente: req.body.fim_expediente,
             dias_func: req.body.dias_func,
         };
 
@@ -220,8 +222,8 @@ for (const iterator of Object.keys(req.body) ) {
         // Hash da senha
         const hashedPassword = await bcrypt.hash(req.body.senha, 10);
         
-        const insertUserQuery = 'INSERT INTO empreendedora (cnpj, senha, nome, telefone, cidade, bairro, logradouro, numero, descricao, formas_pgmnto, classificacao, horario_func, dias_func) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)';
-        await pool.query(insertUserQuery, [empresa.cnpj, hashedPassword, empresa.nome, empresa.telefone, empresa.cidade, empresa.bairro, empresa.logradouro, empresa.numero, empresa.descricao, empresa.formas_pgmnto, empresa.classificacao, empresa.horario_func, empresa.dias_func]);
+        const insertUserQuery = 'INSERT INTO empreendedora (cnpj, senha, nome, telefone, cidade, bairro, logradouro, numero, descricao, classificacao, dias_func, inicio_expediente, fim_expediente) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)';
+        await pool.query(insertUserQuery, [empresa.cnpj, hashedPassword, empresa.nome, empresa.telefone, empresa.cidade, empresa.bairro, empresa.logradouro, empresa.numero, empresa.descricao, empresa.classificacao, empresa.dias_func, empresa.inicio_expediente, empresa.fim_expediente]);
         res.status(201).send('Empresa registrada com sucesso.');
       } catch (error) {
         console.error('Erro ao registrar empresa:', error);
@@ -234,7 +236,6 @@ app.get('/empresa', async (req, res) => {
 
     try {
         const empresaCnpj = jwt.decode(token).cnpj;
-        console.log(empresaCnpj)
         // Consulta o banco de dados para obter as informações do usuário com base no ID
         const client = await pool.query('SELECT * FROM empreendedora WHERE cnpj = $1', [empresaCnpj]);
 
@@ -253,7 +254,7 @@ app.get('/empresa', async (req, res) => {
 
 app.put('/empresa', async (req, res) => {
     const token = req.headers['authorization']
-    const {senha, nome, telefone, cidade, bairro, logradouro, numero, descricao, formas_pgmnto, classificacao, horario_func, dias_func} = req.body;
+    const {senha, nome, telefone, cidade, bairro, logradouro, numero, descricao, classificacao, inicio_expediente, fim_expediente, dias_func} = req.body;
 
     try {
         const empresaId = jwt.decode(token).cnpj;
@@ -265,8 +266,8 @@ app.put('/empresa', async (req, res) => {
         }
 
         // Atualiza os dados do cliente
-        const updateQuery = 'UPDATE empreendedora SET senha = $1, nome = $2, telefone = $3, cidade = $4, bairro = $5, logradouro = $6, numero = $7, descricao = $8, formas_pgmnto = $9, classificacao = $10, horario_func = $11, dias_func = $12  WHERE cnpj = $13';
-        await pool.query(updateQuery, [hashedPassword, nome, telefone, cidade, bairro, logradouro, numero, descricao, formas_pgmnto, classificacao, horario_func, dias_func, empresaId]);
+        const updateQuery = 'UPDATE empreendedora SET senha = $1, nome = $2, telefone = $3, cidade = $4, bairro = $5, logradouro = $6, numero = $7, descricao = $8, classificacao = $9, inicio_expediente = $10, fim_expediente = $11, dias_func = $12  WHERE cnpj = $13';
+        await pool.query(updateQuery, [hashedPassword, nome, telefone, cidade, bairro, logradouro, numero, descricao, classificacao, inicio_expediente, fim_expediente, dias_func, empresaId]);
 
         res.json({ message: 'Informações da empresa atualizadas com sucesso' });
     } catch (error) {
@@ -294,3 +295,245 @@ app.delete('/empresa', async (req, res) => {
         res.status(500).json({ error: 'Erro ao deletar empresa' });
     }
 });
+
+app.post('/procedimento', async (req, res) => {
+    const token = req.headers['authorization'];
+    try {
+        const empresaCnpj = jwt.decode(token).cnpj;
+        const procedimento = {
+            nome: req.body.nome,
+            descricao: req.body.descricao,
+            duracao: req.body.duracao,
+            preco: req.body.preco,
+            categoria: req.body.categoria,
+            classificacao: req.body.classificacao,
+            cnpj: req.body.cnpj
+        };
+
+        for (const iterator of Object.keys(req.body) ) {
+            console.log(iterator);
+            if(!req.body[iterator]){
+                const err = new Error(iterator+' é obrigatório!');
+                err.status = 400;
+                return res.status(400).json({message: iterator+' é obrigatório!'})
+            }
+        }
+
+        //verificando se o email já existe
+        const nomeJaExistente = await pool.query('SELECT * FROM procedimento WHERE nome = $1', [req.body.nome]);
+        if(nomeJaExistente.rows.length > 0) {
+          return res.status(400).json({message: 'O procedimento fornecido já existe em sua conta.'})
+        }
+
+        const insertUserQuery = 'INSERT INTO procedimento (nome, descricao, duracao, preco, categoria, classificacao, cnpj) VALUES ($1, $2, $3, $4, $5, $6, $7)';
+        await pool.query(insertUserQuery, [procedimento.nome, procedimento.descricao, procedimento.duracao, procedimento.preco, procedimento.categoria, procedimento.classificacao, empresaCnpj]);
+        res.status(201).send('Procedimento registrado com sucesso.');
+      } catch (error) {
+        console.error('Erro ao registrar procedimento:', error);
+        res.status(500).send('Erro ao registrar procedimento.');
+    }
+})
+
+app.get('/procedimento', async (req, res) => {
+    const token = req.headers['authorization'];
+
+    try {
+        const empresaCnpj = jwt.decode(token).cnpj;
+        const nomePro = req.body.nome;
+        // Consulta o banco de dados para obter as informações do usuário com base no ID
+        const client = await pool.query('SELECT * FROM procedimento WHERE cnpj = $1 AND nome = $2', [empresaCnpj, nomePro]);
+
+        // Verifica se o usuário foi encontrado
+        if (client.rows.length === 0) {
+            return res.status(404).json({ error: 'Procedimento não encontrado' });
+        }
+
+        // Retorna as informações do usuário
+        res.json(client.rows[0]);
+    } catch (error) {
+        console.error('Erro ao obter informações do procedimento:', error);
+        res.status(500).json({ error: 'Erro ao obter informações do procedimento' });
+    }
+});
+
+app.put('/procedimento', async (req, res) => {
+    const token = req.headers['authorization']
+    const {nome, descricao, duracao, preco, categoria, classificacao} = req.body;
+
+    try {
+        const empresaId = jwt.decode(token).cnpj;
+        // Verifica se o cliente existe no banco de dados
+        const procedimentoExists = await pool.query('SELECT * FROM procedimento WHERE cnpj = $1', [empresaId]);
+        if (procedimentoExists.rows.length === 0) {
+            return res.status(404).json({ error: 'Procedimento não encontrado' });
+        }
+
+        // Atualiza os dados do cliente
+        const updateQuery = 'UPDATE procedimento SET nome = $1, descricao = $2, duracao = $3, preco = $4, categoria = $5, classificacao = $6 WHERE cnpj = $7';
+        await pool.query(updateQuery, [nome, descricao, duracao, preco, categoria, classificacao, empresaId]);
+
+        res.json({ message: 'Informações do procedimento atualizadas com sucesso' });
+    } catch (error) {
+        console.error('Erro ao atualizar procedimento:', error);
+        res.status(500).json({ error: 'Erro ao atualizar Informações do procedimento' });
+    }
+});
+app.delete('/procedimento', async (req, res) => {
+    const token = req.headers['authorization']
+    try {
+        const nomeProcedimento = req.body.nome;
+        const procedimentoExists = await pool.query('SELECT * FROM procedimento WHERE nome = $1', [nomeProcedimento]);
+        if (procedimentoExists.rows.length === 0) {
+            return res.status(404).json({ error: 'Procedimento não encontrado' });
+        }
+
+        // Deleta o cliente do banco de dados
+        await pool.query('DELETE FROM procedimento WHERE nome = $1', [nomeProcedimento]);
+
+        res.json({ message: 'Procedimento deletado com sucesso' });
+    } catch (error) {
+        console.error('Erro ao deletar procedimento:', error);
+        res.status(500).json({ error: 'Erro ao deletar procedimento' });
+    }
+});
+
+app.post('/agendamento', async (req, res) => {
+    const token = req.headers['authorization'];
+    try {
+        const clienteId = jwt.decode(token).id;
+        const agendamento = {
+            id_cli: clienteId,
+            id_pro: req.body.id_pro,
+            id_emp: req.body.cnpj,
+            data: req.body.data,
+            hora_inicio: req.body.hora_inicio,
+            hora_fim: req.body.hora_fim
+        };
+
+        for (const iterator of Object.keys(req.body) ) {
+            if(!req.body[iterator]){
+                const err = new Error(iterator+' é obrigatório!');
+                err.status = 400;
+                return res.status(400).json({message: iterator+' é obrigatório!'})
+            }
+        }
+
+        const dias_func_empreendedora = await pool.query('SELECT dias_func FROM empreendedora WHERE cnpj = $1', [agendamento.id_emp]);
+
+        const data = new Date(agendamento.data);
+        
+        if (dias_func_empreendedora.rows[0].dias_func[data.getDay()]) {
+            console.log("Dia disponível");
+            const inicio_expediente = await pool.query('SELECT inicio_expediente FROM empreendedora WHERE cnpj = $1', [agendamento.id_emp]);
+            const fim_expediente = await pool.query('SELECT fim_expediente FROM empreendedora WHERE cnpj = $1', [agendamento.id_emp]);
+            
+            if (horarioEstaNoIntervalo(agendamento.hora_inicio, inicio_expediente.rows[0].inicio_expediente, fim_expediente.rows[0].fim_expediente) && horarioEstaNoIntervalo(agendamento.hora_fim, inicio_expediente.rows[0].inicio_expediente, fim_expediente.rows[0].fim_expediente)) {
+                console.log("Horário disponível");
+                const agendamentosIni = await pool.query('SELECT hora_inicio FROM agendamento');
+                const agendamentosFim = await pool.query('SELECT hora_fim FROM agendamento');
+                let horarioDisponivel = true;
+        
+                for (let i = 0; i < agendamentosIni.rowCount; i++) {
+                    if (horarioEstaNoIntervalo(agendamento.hora_inicio, agendamentosIni.rows[i].hora_inicio, agendamentosFim.rows[i].hora_fim) || horarioEstaNoIntervalo(agendamento.hora_fim, agendamentosIni.rows[i].hora_inicio, agendamentosFim.rows[i].hora_fim)) {
+                        horarioDisponivel = false;
+                        break;
+                    }
+                }
+        
+                if (horarioDisponivel) {
+                    const insertAgdQuery = 'INSERT INTO agendamento (id_cli, id_pro, id_emp, data, hora_inicio, hora_fim) VALUES ($1, $2, $3, $4, $5, $6)';
+                    await pool.query(insertAgdQuery, [clienteId, agendamento.id_pro, agendamento.id_emp, agendamento.data, agendamento.hora_inicio, agendamento.hora_fim]);
+                    res.status(201).send('Procedimento registrado com sucesso.');
+                } else {
+                    res.status(400).send("Já existe outro procedimento cadastrado nesse horário");
+                }
+            } else {
+                res.status(400).send("O estabelecimento não funciona nesse horário");
+            }
+        } else {
+            res.status(400).send("O estabelecimento não funciona nesse dia");
+        }
+        
+    } catch (error) {
+        console.error('Erro ao registrar procedimento:', error);
+        res.status(500).send('Erro ao registrar procedimento.');
+    }
+})
+/*
+app.get('/procedimento', async (req, res) => {
+    const token = req.headers['authorization'];
+
+    try {
+        const empresaCnpj = jwt.decode(token).cnpj;
+        // Consulta o banco de dados para obter as informações do usuário com base no ID
+        const client = await pool.query('SELECT * FROM procedimento WHERE cnpj = $1', [empresaCnpj]);
+
+        // Verifica se o usuário foi encontrado
+        if (client.rows.length === 0) {
+            return res.status(404).json({ error: 'Procedimento não encontrado' });
+        }
+
+        // Retorna as informações do usuário
+        res.json(client.rows[0]);
+    } catch (error) {
+        console.error('Erro ao obter informações do procedimento:', error);
+        res.status(500).json({ error: 'Erro ao obter informações do procedimento' });
+    }
+});
+
+app.put('/procedimento', async (req, res) => {
+    const token = req.headers['authorization']
+    const {nome, descricao, duracao, preco, categoria, classificacao} = req.body;
+
+    try {
+        const empresaId = jwt.decode(token).cnpj;
+        // Verifica se o cliente existe no banco de dados
+        const procedimentoExists = await pool.query('SELECT * FROM procedimento WHERE cnpj = $1', [empresaId]);
+        if (procedimentoExists.rows.length === 0) {
+            return res.status(404).json({ error: 'Procedimento não encontrado' });
+        }
+
+        // Atualiza os dados do cliente
+        const updateQuery = 'UPDATE procedimento SET nome = $1, descricao = $2, duracao = $3, preco = $4, categoria = $5, classificacao = $6 WHERE cnpj = $7';
+        await pool.query(updateQuery, [nome, descricao, duracao, preco, categoria, classificacao, empresaId]);
+
+        res.json({ message: 'Informações do procedimento atualizadas com sucesso' });
+    } catch (error) {
+        console.error('Erro ao atualizar procedimento:', error);
+        res.status(500).json({ error: 'Erro ao atualizar Informações do procedimento' });
+    }
+});
+app.delete('/procedimento', async (req, res) => {
+    const token = req.headers['authorization']
+    try {
+        const nomeProcedimento = req.body.nome;
+        const procedimentoExists = await pool.query('SELECT * FROM procedimento WHERE nome = $1', [nomeProcedimento]);
+        if (procedimentoExists.rows.length === 0) {
+            return res.status(404).json({ error: 'Procedimento não encontrado' });
+        }
+
+        // Deleta o cliente do banco de dados
+        await pool.query('DELETE FROM procedimento WHERE nome = $1', [nomeProcedimento]);
+
+        res.json({ message: 'Procedimento deletado com sucesso' });
+    } catch (error) {
+        console.error('Erro ao deletar procedimento:', error);
+        res.status(500).json({ error: 'Erro ao deletar procedimento' });
+    }
+});*/
+function horarioEstaNoIntervalo(horario, inicioIntervalo, fimIntervalo) {
+    // Converte os horários para objetos Date para facilitar a comparação
+    const iniIntDate = "2024-04-20T" + inicioIntervalo + ":00"
+    const fimIntDate = "2024-04-20T" + fimIntervalo + ":00"
+    const horarioIntDate = "2024-04-20T" + horario
+    //console.log(iniIntDate + "\n" + fimIntDate + "\n" + horarioIntDate)
+
+    const horarioDate = new Date(horarioIntDate);
+    const inicioIntervaloDate = new Date(iniIntDate);
+    const fimIntervaloDate = new Date(fimIntDate);
+
+    //console.log(horarioDate + "\n" + inicioIntervaloDate + "\n" + fimIntervaloDate)
+
+    // Verifica se o horário está dentro do intervalo
+    return horarioDate >= inicioIntervaloDate && horarioDate <= fimIntervaloDate;
+}
