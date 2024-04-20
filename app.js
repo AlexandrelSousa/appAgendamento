@@ -455,72 +455,80 @@ app.post('/agendamento', async (req, res) => {
         }
         
     } catch (error) {
-        console.error('Erro ao registrar procedimento:', error);
-        res.status(500).send('Erro ao registrar procedimento.');
+        console.error('Erro ao registrar agendameto:', error);
+        res.status(500).send('Erro ao registrar agendamento.');
     }
 })
-/*
-app.get('/procedimento', async (req, res) => {
+
+app.get('/agendamento', async (req, res) => {
     const token = req.headers['authorization'];
-
+    let id;
+    let client;
     try {
-        const empresaCnpj = jwt.decode(token).cnpj;
-        // Consulta o banco de dados para obter as informações do usuário com base no ID
-        const client = await pool.query('SELECT * FROM procedimento WHERE cnpj = $1', [empresaCnpj]);
-
+        if(jwt.decode(token).cnpj == undefined){
+            id = jwt.decode(token).id
+            agendamento = await pool.query('SELECT * FROM agendamento WHERE id_cli = $1', [id]);
+        }else{
+            id = jwt.decode(token).cnpj
+            agendamento = await pool.query('SELECT * FROM agendamento WHERE id_emp = $1', [id]);
+        }
         // Verifica se o usuário foi encontrado
-        if (client.rows.length === 0) {
-            return res.status(404).json({ error: 'Procedimento não encontrado' });
+        if (agendamento.rows.length === 0) {
+            return res.status(404).json({ error: 'Agendamento não encontrado' });
         }
 
         // Retorna as informações do usuário
-        res.json(client.rows[0]);
+        for(let i = 0; i<agendamento.rowCount; i++){
+            res.json(agendamento.rows[i]);
+        }
     } catch (error) {
-        console.error('Erro ao obter informações do procedimento:', error);
-        res.status(500).json({ error: 'Erro ao obter informações do procedimento' });
+        console.error('Erro ao obter informações do agendamento:', error);
+        res.status(500).json({ error: 'Erro ao obter informações do agendamento' });
     }
 });
 
-app.put('/procedimento', async (req, res) => {
-    const token = req.headers['authorization']
-    const {nome, descricao, duracao, preco, categoria, classificacao} = req.body;
-
+app.put('/agendamento', async (req, res) => {
+    const agendamento = {
+        data: req.body.data,
+        hora_inicio: req.body.hora_inicio,
+        hora_fim: req.body.hora_fim,
+        id_emp: req.body.id_emp,
+        id_cli: req.body.id_cli,
+        id_pro: req.body.id_pro
+    }
     try {
-        const empresaId = jwt.decode(token).cnpj;
-        // Verifica se o cliente existe no banco de dados
-        const procedimentoExists = await pool.query('SELECT * FROM procedimento WHERE cnpj = $1', [empresaId]);
-        if (procedimentoExists.rows.length === 0) {
-            return res.status(404).json({ error: 'Procedimento não encontrado' });
-        }
-
         // Atualiza os dados do cliente
-        const updateQuery = 'UPDATE procedimento SET nome = $1, descricao = $2, duracao = $3, preco = $4, categoria = $5, classificacao = $6 WHERE cnpj = $7';
-        await pool.query(updateQuery, [nome, descricao, duracao, preco, categoria, classificacao, empresaId]);
+        const updateQuery = 'UPDATE agendamento SET data = $1, hora_inicio = $2, hora_fim = $3, id_pro = $4 WHERE id_emp = $5 AND id_cli = $6';
+        await pool.query(updateQuery, [agendamento.data, agendamento.hora_inicio, agendamento.hora_fim, agendamento.id_pro, agendamento.id_emp, agendamento.id_cli]);
 
-        res.json({ message: 'Informações do procedimento atualizadas com sucesso' });
+        res.json({ message: 'Informações do agendamento atualizadas com sucesso' });
     } catch (error) {
-        console.error('Erro ao atualizar procedimento:', error);
-        res.status(500).json({ error: 'Erro ao atualizar Informações do procedimento' });
+        console.error('Erro ao atualizar agendamento:', error);
+        res.status(500).json({ error: 'Erro ao atualizar Informações do agendamento' });
     }
 });
-app.delete('/procedimento', async (req, res) => {
-    const token = req.headers['authorization']
+app.delete('/agendamento', async (req, res) => {
     try {
-        const nomeProcedimento = req.body.nome;
-        const procedimentoExists = await pool.query('SELECT * FROM procedimento WHERE nome = $1', [nomeProcedimento]);
-        if (procedimentoExists.rows.length === 0) {
+        const agendamento = {
+            data: req.body.data,
+            hora_inicio: req.body.hora_inicio
+        }
+        const agendamentoExists = await pool.query('SELECT * FROM agendamento WHERE data = $1 AND hora_inicio = $2', [agendamento.data, agendamento.hora_inicio]);
+        if (agendamentoExists.rows.length === 0) {
             return res.status(404).json({ error: 'Procedimento não encontrado' });
         }
 
-        // Deleta o cliente do banco de dados
-        await pool.query('DELETE FROM procedimento WHERE nome = $1', [nomeProcedimento]);
+        // Deleta o agendamento do banco de dados
+        await pool.query('DELETE FROM agendamento WHERE data = $1 AND hora_inicio = $2', [agendamento.data, agendamento.hora_inicio]);
 
-        res.json({ message: 'Procedimento deletado com sucesso' });
+        res.json({ message: 'Agendamento deletado com sucesso' });
     } catch (error) {
-        console.error('Erro ao deletar procedimento:', error);
-        res.status(500).json({ error: 'Erro ao deletar procedimento' });
+        console.error('Erro ao deletar agendamento:', error);
+        res.status(500).json({ error: 'Erro ao deletar agendamento' });
     }
-});*/
+});
+
+
 function horarioEstaNoIntervalo(horario, inicioIntervalo, fimIntervalo) {
     // Converte os horários para objetos Date para facilitar a comparação
     const iniIntDate = "2024-04-20T" + inicioIntervalo + ":00"
