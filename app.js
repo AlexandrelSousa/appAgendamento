@@ -320,14 +320,14 @@ app.post('/procedimento', async (req, res) => {
         }
 
         //verificando se o email já existe
-        const nomeJaExistente = await pool.query('SELECT * FROM procedimento WHERE nome = $1', [req.body.nome]);
+        const nomeJaExistente = await pool.query('SELECT * FROM procedimento WHERE nome = $1 AND cnpj = $2', [req.body.nome, empresaCnpj]);
         if(nomeJaExistente.rows.length > 0) {
           return res.status(400).json({message: 'O procedimento fornecido já existe em sua conta.'})
         }
 
         const insertUserQuery = 'INSERT INTO procedimento (nome, descricao, duracao, preco, categoria, classificacao, cnpj) VALUES ($1, $2, $3, $4, $5, $6, $7)';
         await pool.query(insertUserQuery, [procedimento.nome, procedimento.descricao, procedimento.duracao, procedimento.preco, procedimento.categoria, procedimento.classificacao, empresaCnpj]);
-        res.status(201).send('Procedimento registrado com sucesso.');
+        res.status(201).json({ message: 'Procedimento registrado com sucesso.' });
       } catch (error) {
         console.error('Erro ao registrar procedimento:', error);
         res.status(500).send('Erro ao registrar procedimento.');
@@ -339,9 +339,8 @@ app.get('/procedimento', async (req, res) => {
 
     try {
         const empresaCnpj = jwt.decode(token).cnpj;
-        const nomePro = req.body.nome;
         // Consulta o banco de dados para obter as informações do usuário com base no ID
-        const client = await pool.query('SELECT * FROM procedimento WHERE cnpj = $1 AND nome = $2', [empresaCnpj, nomePro]);
+        const client = await pool.query('SELECT * FROM procedimento WHERE cnpj = $1', [empresaCnpj]);
 
         // Verifica se o usuário foi encontrado
         if (client.rows.length === 0) {
@@ -349,7 +348,7 @@ app.get('/procedimento', async (req, res) => {
         }
 
         // Retorna as informações do usuário
-        res.json(client.rows[0]);
+        res.json(client.rows);
     } catch (error) {
         console.error('Erro ao obter informações do procedimento:', error);
         res.status(500).json({ error: 'Erro ao obter informações do procedimento' });
@@ -361,16 +360,19 @@ app.put('/procedimento', async (req, res) => {
     const {nome, descricao, duracao, preco, categoria, classificacao} = req.body;
 
     try {
-        const empresaId = jwt.decode(token).cnpj;
+        let empresaId = jwt.decode(token).cnpj;
         // Verifica se o cliente existe no banco de dados
-        const procedimentoExists = await pool.query('SELECT * FROM procedimento WHERE cnpj = $1', [empresaId]);
-        if (procedimentoExists.rows.length === 0) {
+        const procedimentoFind = await pool.query('SELECT * FROM procedimento WHERE cnpj = $1 AND nome = $2', [empresaId, req.body.nome_antigo]);
+        if (procedimentoFind.rows.length === 0) {
             return res.status(404).json({ error: 'Procedimento não encontrado' });
         }
-
+        const procedimentoExists = pool.query("SELECT * FROM procedimento WHERE cnpj = $1 AND nome = $2", [empresaId, req.body.nome])
+        if((await procedimentoExists).rowCount != 0){
+            return res.status(400).json({error: 'procedimento já cadastrado em sua conta'})
+        }
         // Atualiza os dados do cliente
-        const updateQuery = 'UPDATE procedimento SET nome = $1, descricao = $2, duracao = $3, preco = $4, categoria = $5, classificacao = $6 WHERE cnpj = $7';
-        await pool.query(updateQuery, [nome, descricao, duracao, preco, categoria, classificacao, empresaId]);
+        const updateQuery = 'UPDATE procedimento SET nome = $1, descricao = $2, duracao = $3, preco = $4, categoria = $5, classificacao = $6 WHERE cnpj = $7 AND nome = $8';
+        await pool.query(updateQuery, [nome, descricao, duracao, preco, categoria, classificacao, empresaId, req.body.nome_antigo]);
 
         res.json({ message: 'Informações do procedimento atualizadas com sucesso' });
     } catch (error) {
@@ -381,14 +383,16 @@ app.put('/procedimento', async (req, res) => {
 app.delete('/procedimento', async (req, res) => {
     const token = req.headers['authorization']
     try {
+        let empresaId = jwt.decode(token).cnpj;
         const nomeProcedimento = req.body.nome;
-        const procedimentoExists = await pool.query('SELECT * FROM procedimento WHERE nome = $1', [nomeProcedimento]);
+        const procedimentoExists = await pool.query('SELECT * FROM procedimento WHERE nome = $1 AND cnpj = $2', [nomeProcedimento, empresaId]);
         if (procedimentoExists.rows.length === 0) {
             return res.status(404).json({ error: 'Procedimento não encontrado' });
         }
 
+        await pool.query('DELETE FROM agendamento WHERE id_pro = $1', [req.body.id_pro])
         // Deleta o cliente do banco de dados
-        await pool.query('DELETE FROM procedimento WHERE nome = $1', [nomeProcedimento]);
+        await pool.query('DELETE FROM procedimento WHERE nome = $1 AND cnpj = $2', [nomeProcedimento, empresaId]);
 
         res.json({ message: 'Procedimento deletado com sucesso' });
     } catch (error) {
