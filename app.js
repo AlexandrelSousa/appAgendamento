@@ -231,6 +231,23 @@ for (const iterator of Object.keys(req.body) ) {
     }
 })
 
+app.get('/empresa/todas', async(req, res) => {
+    try {
+        const empresas = await pool.query('SELECT nome, descricao, cnpj FROM empreendedora');
+
+        // Verifica se o usuário foi encontrado
+        if (empresas.rows.length === 0) {
+            return res.status(404).json({ error: 'Usuário não encontrado' });
+        }
+
+        // Retorna as informações do usuário
+        res.json(empresas.rows);
+    } catch (error) {
+        console.error('Erro ao obter informações das empresas:', error);
+        res.status(500).json({ error: 'Erro ao obter informações das empresas' });
+    }
+})
+
 app.get('/empresa', async (req, res) => {
     const token = req.headers['authorization'];
 
@@ -286,6 +303,9 @@ app.delete('/empresa', async (req, res) => {
             return res.status(404).json({ error: 'Empresa não encontrada' });
         }
 
+        await pool.query('DELETE FROM agendamento WHERE id_emp = $1', [empresaId])
+
+        await pool.query('DELETE FROM procedimento WHERE cnpj = $1', [empresaId])
         // Deleta o cliente do banco de dados
         await pool.query('DELETE FROM empreendedora WHERE cnpj = $1', [empresaId]);
 
@@ -549,3 +569,35 @@ function horarioEstaNoIntervalo(horario, inicioIntervalo, fimIntervalo) {
     // Verifica se o horário está dentro do intervalo
     return horarioDate >= inicioIntervaloDate && horarioDate <= fimIntervaloDate;
 }
+    //
+    app.get('/procedimento/filtro', async (req, res) => {
+        try {
+            const { categoria } = req.query;
+            //console.log('Categoria:', categoria);
+    
+            // Consulta para buscar procedimentos com a categoria especificada
+            const procedimentosFiltrados = await pool.query('SELECT cnpj FROM procedimento WHERE categoria = $1', [categoria]);
+            //console.log('Procedimentos filtrados:', procedimentosFiltrados.rows);
+    
+            if (procedimentosFiltrados.rowCount === 0) {
+                console.log('Nenhum procedimento encontrado com a categoria especificada.');
+                return res.json([]);
+            }
+    
+            // Montar uma lista de IDs de procedimentos
+            const procedimentoIds = procedimentosFiltrados.rows.map(procedimento => procedimento.cnpj);
+            //console.log('IDs dos procedimentos filtrados:', procedimentoIds);
+
+            
+            // Consulta para buscar todas as empresas associadas aos procedimentos filtrados
+            const empresasComFiltro = await pool.query('SELECT cnpj, nome, descricao FROM empreendedora WHERE cnpj = ANY($1)', [procedimentoIds]);
+            //console.log('Empresas com filtro:', empresasComFiltro.rows);
+    
+            res.json(empresasComFiltro.rows);
+        } catch (error) {
+            console.error('Erro ao consultar procedimentos:', error);
+            res.status(500).json({ error: 'Erro ao consultar procedimentos' });
+        }
+    });
+    
+    
