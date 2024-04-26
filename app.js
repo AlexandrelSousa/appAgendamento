@@ -316,6 +316,7 @@ app.delete('/empresa', async (req, res) => {
     }
 });
 
+
 app.post('/procedimento', async (req, res) => {
     const token = req.headers['authorization'];
     try {
@@ -570,9 +571,9 @@ function horarioEstaNoIntervalo(horario, inicioIntervalo, fimIntervalo) {
     return horarioDate >= inicioIntervaloDate && horarioDate <= fimIntervaloDate;
 }
     //
-    app.get('/procedimento/filtro', async (req, res) => {
-        try {
-            const { categoria } = req.query;
+app.get('/procedimento/filtro', async (req, res) => {
+    try {
+        const { categoria } = req.query;
             //console.log('Categoria:', categoria);
     
             // Consulta para buscar procedimentos com a categoria especificada
@@ -598,6 +599,39 @@ function horarioEstaNoIntervalo(horario, inicioIntervalo, fimIntervalo) {
             console.error('Erro ao consultar procedimentos:', error);
             res.status(500).json({ error: 'Erro ao consultar procedimentos' });
         }
-    });
+});
+
+app.get('/procedimento/:cnpj', async (req, res) => {
+    try {
+        const cnpj = req.params.cnpj;
     
-    
+            const procedimentosFiltrados = await pool.query('SELECT * FROM procedimento WHERE cnpj = $1', [cnpj]);
+            
+            if (procedimentosFiltrados.rowCount === 0) {
+                console.log('Nenhum procedimento encontrado com a categoria especificada.');
+                return res.json([]);
+            }
+
+            res.json(procedimentosFiltrados.rows);
+        } catch (error) {
+            console.error('Erro ao consultar procedimentos:', error);
+            res.status(500).json({ error: 'Erro ao consultar procedimentos' });
+        }
+});
+
+app.get('/empresa/:cnpj', async (req, res) => {
+    try {
+        const cnpj = req.params.cnpj;
+        
+        const empresa = await pool.query('SELECT * FROM empreendedora WHERE cnpj = $1', [cnpj]);
+        
+        if (empresa.rowCount === 0) {
+            return res.status(404).json({ error: 'Empresa não encontrada' });
+        }
+
+        res.json(empresa.rows[0]);
+    } catch (error) {
+        console.error('Erro ao buscar informações da empresa:', error);
+        res.status(500).json({ error: 'Erro ao buscar informações da empresa' });
+    }
+});
