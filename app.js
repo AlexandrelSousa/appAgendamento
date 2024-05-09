@@ -355,6 +355,28 @@ app.post('/procedimento', async (req, res) => {
     }
 })
 
+app.get('/procedimento/unico/:id', async (req, res) => {
+    const token = req.headers['authorization'];
+
+    try {
+        const procedimentoId = req.params.id;
+
+        // Consulta o banco de dados para obter as informações do procedimento com base no ID
+        const procedimento = await pool.query('SELECT * FROM procedimento WHERE id_pro = $1', [procedimentoId]);
+
+        // Verifica se o procedimento foi encontrado
+        if (procedimento.rows.length === 0) {
+            return res.status(404).json({ error: 'Procedimento não encontrado' });
+        }
+
+        // Retorna as informações do procedimento
+        res.json(procedimento.rows[0]);
+    } catch (error) {
+        console.error('Erro ao obter informações do procedimento:', error);
+        res.status(500).json({ error: 'Erro ao obter informações do procedimento' });
+    }
+});
+
 app.get('/procedimento', async (req, res) => {
     const token = req.headers['authorization'];
 
@@ -444,7 +466,7 @@ app.post('/agendamento', async (req, res) => {
         }
 
         const dias_func_empreendedora = await pool.query('SELECT dias_func FROM empreendedora WHERE cnpj = $1', [agendamento.id_emp]);
-
+        console.log(dias_func_empreendedora.rows[0])
         const data = new Date(agendamento.data);
         
         if (dias_func_empreendedora.rows[0].dias_func[data.getDay()]) {
@@ -468,7 +490,7 @@ app.post('/agendamento', async (req, res) => {
                 if (horarioDisponivel) {
                     const insertAgdQuery = 'INSERT INTO agendamento (id_cli, id_pro, id_emp, data, hora_inicio, hora_fim) VALUES ($1, $2, $3, $4, $5, $6)';
                     await pool.query(insertAgdQuery, [clienteId, agendamento.id_pro, agendamento.id_emp, agendamento.data, agendamento.hora_inicio, agendamento.hora_fim]);
-                    res.status(201).send('Procedimento registrado com sucesso.');
+                    res.status(201).json({ message: 'Procedimento registrado com sucesso.' });
                 } else {
                     res.status(400).send("Já existe outro procedimento cadastrado nesse horário");
                 }
@@ -488,7 +510,6 @@ app.post('/agendamento', async (req, res) => {
 app.get('/agendamento', async (req, res) => {
     const token = req.headers['authorization'];
     let id;
-    let client;
     try {
         if(jwt.decode(token).cnpj == undefined){
             id = jwt.decode(token).id
@@ -503,9 +524,7 @@ app.get('/agendamento', async (req, res) => {
         }
 
         // Retorna as informações do usuário
-        for(let i = 0; i<agendamento.rowCount; i++){
-            res.json(agendamento.rows[i]);
-        }
+        res.json(agendamento.rows);
     } catch (error) {
         console.error('Erro ao obter informações do agendamento:', error);
         res.status(500).json({ error: 'Erro ao obter informações do agendamento' });
