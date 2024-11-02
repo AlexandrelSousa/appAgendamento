@@ -2,6 +2,18 @@ const express = require ('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const multer = require('multer');
+const path = require('path');
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, './uploads/');  // Pasta onde as imagens serão salvas
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));  // Nome único para evitar conflitos
+    }
+});
+const upload = multer({ storage: storage });
 
 require('dotenv').config();
 
@@ -186,8 +198,32 @@ app.get('/clientes', async (req, res) => {
     }
 });
 
-app.post('/empresa/cadastrar', async (req, res) => {
+app.get('/clientes/:id', async (req, res) => {
+    const clientId = req.params.id;
+
     try {
+        const client = await pool.query('SELECT * FROM cliente WHERE id = $1', [clientId]);
+
+        if (client.rows.length === 0) {
+            return res.status(404).json({ error: 'Cliente não encontrado' });
+        }
+
+        res.json(client.rows[0]);
+
+    } catch (error) {
+        console.error('Erro ao obter informações do cliente:', error);
+        res.status(500).json({ error: 'Erro ao obter informações do cliente' });
+    }
+});
+
+
+
+app.post('/empresa/cadastrar', upload.single('logo'), async (req, res) => {
+    try {
+        // Extrair a imagem (se for enviada)
+        const logoPath = req.file ? req.file.path.replace(/\\/g, '/') : null;
+        console.log(logoPath)
+
         const empresa = {
             cnpj: req.body.cnpj,
             senha: req.body.senha,
@@ -202,51 +238,72 @@ app.post('/empresa/cadastrar', async (req, res) => {
             inicio_expediente: req.body.inicio_expediente,
             fim_expediente: req.body.fim_expediente,
             dias_func: req.body.dias_func,
+            logo: logoPath
         };
 
-// Verifica se o CNPJ é fornecido
-for (const iterator of Object.keys(req.body) ) {
-    console.log(iterator);
-    if(!req.body[iterator]){
-        const err = new Error(iterator+' é obrigatório!');
-        err.status = 400;
-        return res.status(400).json({message: iterator+' é obrigatório!'})
-    }
-}
-        //verificando se o email já existe
+        // Validação de campos
+        for (const iterator of Object.keys(req.body)) {
+            console.log(iterator);
+            if (!req.body[iterator]) {
+                const err = new Error(iterator + ' é obrigatório!');
+                err.status = 400;
+                return res.status(400).json({ message: iterator + ' é obrigatório!' });
+            }
+        }
+
+        // Verificando se o CNPJ já existe
         const cnpjJaExistente = await pool.query('SELECT * FROM empreendedora WHERE cnpj = $1', [req.body.cnpj]);
-        if(cnpjJaExistente.rows.length > 0) {
-          return res.status(400).json({message: 'O CNPJ fornecido já está em uso.'})
+        if (cnpjJaExistente.rows.length > 0) {
+            return res.status(400).json({ message: 'O CNPJ fornecido já está em uso.' });
         }
 
         // Hash da senha
         const hashedPassword = await bcrypt.hash(req.body.senha, 10);
-        
-        const insertUserQuery = 'INSERT INTO empreendedora (cnpj, senha, nome, telefone, cidade, bairro, logradouro, numero, descricao, classificacao, dias_func, inicio_expediente, fim_expediente) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)';
-        await pool.query(insertUserQuery, [empresa.cnpj, hashedPassword, empresa.nome, empresa.telefone, empresa.cidade, empresa.bairro, empresa.logradouro, empresa.numero, empresa.descricao, empresa.classificacao, empresa.dias_func, empresa.inicio_expediente, empresa.fim_expediente]);
+
+        // Inserir dados no banco de dados, incluindo o caminho do logo
+        const insertUserQuery = 'INSERT INTO empreendedora (cnpj, senha, nome, telefone, cidade, bairro, logradouro, numero, descricao, classificacao, dias_func, inicio_expediente, fim_expediente, logo) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)';
+        await pool.query(insertUserQuery, [
+            empresa.cnpj, 
+            hashedPassword, 
+            empresa.nome, 
+            empresa.telefone, 
+            empresa.cidade, 
+            empresa.bairro, 
+            empresa.logradouro, 
+            empresa.numero, 
+            empresa.descricao, 
+            empresa.classificacao, 
+            empresa.dias_func, 
+            empresa.inicio_expediente, 
+            empresa.fim_expediente,
+            empresa.logo  // Caminho do logo no banco de dados
+        ]);
+
         res.status(201).send('Empresa registrada com sucesso.');
-      } catch (error) {
+    } catch (error) {
         console.error('Erro ao registrar empresa:', error);
         res.status(500).send('Erro ao registrar empresa.');
     }
-})
+});
 
-app.get('/empresa/todas', async(req, res) => {
+
+app.get('/empresa/todas', async (req, res) => {
     try {
-        const empresas = await pool.query('SELECT nome, descricao, cnpj FROM empreendedora');
+        const empresas = await pool.query('SELECT nome, descricao, cnpj, logo FROM empreendedora');
 
-        // Verifica se o usuário foi encontrado
+        // Verifica se foram encontradas empresas
         if (empresas.rows.length === 0) {
-            return res.status(404).json({ error: 'Usuário não encontrado' });
+            return res.status(404).json({ error: 'Nenhuma empresa encontrada' });
         }
 
-        // Retorna as informações do usuário
+        // Retorna as informações das empresas
         res.json(empresas.rows);
     } catch (error) {
         console.error('Erro ao obter informações das empresas:', error);
         res.status(500).json({ error: 'Erro ao obter informações das empresas' });
     }
-})
+});
+
 
 app.get('/empresa', async (req, res) => {
     const token = req.headers['authorization'];
@@ -443,8 +500,8 @@ app.delete('/procedimento', async (req, res) => {
         res.status(500).json({ error: 'Erro ao deletar procedimento' });
     }
 });
-
 app.post('/agendamento', async (req, res) => {
+    console.log('Dados recebidos:', req.body);
     const token = req.headers['authorization'];
     try {
         const clienteId = jwt.decode(token).id;
@@ -457,36 +514,60 @@ app.post('/agendamento', async (req, res) => {
             hora_fim: req.body.hora_fim
         };
 
-        for (const iterator of Object.keys(req.body) ) {
-            if(!req.body[iterator]){
-                const err = new Error(iterator+' é obrigatório!');
+        for (const iterator of Object.keys(req.body)) {
+            if (!req.body[iterator]) {
+                const err = new Error(iterator + ' é obrigatório!');
                 err.status = 400;
-                return res.status(400).json({message: iterator+' é obrigatório!'})
+                return res.status(400).json({ message: iterator + ' é obrigatório!' });
             }
         }
 
         const dias_func_empreendedora = await pool.query('SELECT dias_func FROM empreendedora WHERE cnpj = $1', [agendamento.id_emp]);
-        console.log(dias_func_empreendedora.rows[0])
+        console.log('Dias de funcionamento do empreendedor:', dias_func_empreendedora.rows[0]);
         const data = new Date(agendamento.data);
-        
+
         if (dias_func_empreendedora.rows[0].dias_func[data.getDay()]) {
             console.log("Dia disponível");
             const inicio_expediente = await pool.query('SELECT inicio_expediente FROM empreendedora WHERE cnpj = $1', [agendamento.id_emp]);
             const fim_expediente = await pool.query('SELECT fim_expediente FROM empreendedora WHERE cnpj = $1', [agendamento.id_emp]);
-            
-            if (horarioEstaNoIntervalo(agendamento.hora_inicio, inicio_expediente.rows[0].inicio_expediente, fim_expediente.rows[0].fim_expediente) && horarioEstaNoIntervalo(agendamento.hora_fim, inicio_expediente.rows[0].inicio_expediente, fim_expediente.rows[0].fim_expediente)) {
+
+            console.log('Início do expediente:', inicio_expediente.rows[0].inicio_expediente);
+            console.log('Fim do expediente:', fim_expediente.rows[0].fim_expediente);
+
+            if (horarioEstaNoIntervalo(agendamento.hora_inicio, inicio_expediente.rows[0].inicio_expediente, fim_expediente.rows[0].fim_expediente) && 
+                horarioEstaNoIntervalo(agendamento.hora_fim, inicio_expediente.rows[0].inicio_expediente, fim_expediente.rows[0].fim_expediente)) {
+                
                 console.log("Horário disponível");
                 const agendamentosIni = await pool.query('SELECT hora_inicio FROM agendamento');
                 const agendamentosFim = await pool.query('SELECT hora_fim FROM agendamento');
                 let horarioDisponivel = true;
-        
+
                 for (let i = 0; i < agendamentosIni.rowCount; i++) {
-                    if (horarioEstaNoIntervalo(agendamento.hora_inicio, agendamentosIni.rows[i].hora_inicio, agendamentosFim.rows[i].hora_fim) || horarioEstaNoIntervalo(agendamento.hora_fim, agendamentosIni.rows[i].hora_inicio, agendamentosFim.rows[i].hora_fim)) {
+                    console.log('Comparando com agendamento existente:');
+                    console.log('Hora de início agendada:', agendamentosIni.rows[i].hora_inicio);
+                    console.log('Hora de fim agendada:', agendamentosFim.rows[i].hora_fim);
+                
+                    // Converte os horários para Date para facilitar a comparação
+                    const inicioExistente = new Date(`1970-01-01T${agendamentosIni.rows[i].hora_inicio}`);
+                    const fimExistente = new Date(`1970-01-01T${agendamentosFim.rows[i].hora_fim}`);
+                    const inicioNovo = new Date(`1970-01-01T${agendamento.hora_inicio}`);
+                    const fimNovo = new Date(`1970-01-01T${agendamento.hora_fim}`);
+                
+                    if (
+                        (inicioNovo >= inicioExistente && inicioNovo < fimExistente) || // Novo início dentro do existente
+                        (fimNovo > inicioExistente && fimNovo <= fimExistente) || // Novo fim dentro do existente
+                        (inicioExistente >= inicioNovo && inicioExistente < fimNovo) // Existente início dentro do novo
+                    ) {
+                        console.log('Horário não disponível');
                         horarioDisponivel = false;
                         break;
                     }
                 }
-        
+                
+                
+
+                console.log('Horário disponível:', horarioDisponivel);
+
                 if (horarioDisponivel) {
                     const insertAgdQuery = 'INSERT INTO agendamento (id_cli, id_pro, id_emp, data, hora_inicio, hora_fim) VALUES ($1, $2, $3, $4, $5, $6)';
                     await pool.query(insertAgdQuery, [clienteId, agendamento.id_pro, agendamento.id_emp, agendamento.data, agendamento.hora_inicio, agendamento.hora_fim]);
@@ -500,12 +581,13 @@ app.post('/agendamento', async (req, res) => {
         } else {
             res.status(400).send("O estabelecimento não funciona nesse dia");
         }
-        
+
     } catch (error) {
-        console.error('Erro ao registrar agendameto:', error);
+        console.error('Erro ao registrar agendamento:', error);
         res.status(500).send('Erro ao registrar agendamento.');
     }
-})
+});
+
 
 app.get('/agendamento', async (req, res) => {
     const token = req.headers['authorization'];
@@ -530,6 +612,25 @@ app.get('/agendamento', async (req, res) => {
         res.status(500).json({ error: 'Erro ao obter informações do agendamento' });
     }
 });
+
+app.get('/agendamento/:cnpj', async (req, res) => {
+    const cnpj = req.params.cnpj; // Obtém o CNPJ da URL
+    try {
+        // Consulta o banco de dados para obter agendamentos da empresa com o CNPJ fornecido
+        const agendamento = await pool.query('SELECT * FROM agendamento WHERE id_emp = $1', [cnpj]);
+
+        // Verifica se agendamentos foram encontrados
+        if (agendamento.rows.length === 0) {
+            return res.status(404).json({ error: 'Agendamento não encontrado para esta empresa.' });
+        }
+
+        res.json(agendamento.rows);
+    } catch (error) {
+        console.error('Erro ao obter informações do agendamento:', error);
+        res.status(500).json({ error: 'Erro ao obter informações do agendamento' });
+    }
+});
+
 
 app.put('/agendamento', async (req, res) => {
     const agendamento = {
@@ -654,3 +755,21 @@ app.get('/empresa/:cnpj', async (req, res) => {
         res.status(500).json({ error: 'Erro ao buscar informações da empresa' });
     }
 });
+
+
+// Middleware para servir arquivos estáticos
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Endpoint para upload de imagens
+app.post('/upload', upload.single('image'), (req, res) => {
+    try {
+        res.status(200).json({
+            message: 'Imagem enviada com sucesso!',
+            imagePath: req.file.path,
+        });
+    } catch (error) {
+        res.status(400).json({ message: 'Erro ao enviar a imagem', error });
+    }
+});
+
+
