@@ -17,11 +17,11 @@ const upload = multer({ storage: storage });
 
 const allowedOrigins = ['https://conect-beauty-app.vercel.app'];
 
-app.use(cors({
-    origin: allowedOrigins,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true, // Se você estiver usando cookies ou autenticação
-}));
+const corsOptions = {
+    origin: 'https://conect-beauty-app.vercel.app/', // Altere isso para o domínio correto
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true, // Se você precisar enviar cookies ou cabeçalhos de autenticação
+};
 
 require('dotenv').config();
 
@@ -30,7 +30,9 @@ const PORT = 3030;
 const app = express();
 
 app.use(express.json())
-app.use(cors());
+
+app.use(cors(corsOptions));
+
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).send('Algo deu errado!');
