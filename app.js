@@ -32,13 +32,26 @@ const { Pool } = require('pg');
 const { parse } = require('dotenv');
 
 const pool = new Pool({
-    host: "localhost",
-    user: "postgres",
-    port: 5433,
-    password: "123",
-    database: "appAgendamento"
-})
+    connectionString: "postgresql://agendamento_owner:DHLw1h8eZgiR@ep-empty-credit-a5swlfu0.us-east-2.aws.neon.tech/agendamento?sslmode=require"
+});
 
+// Testar a conexão
+(async () => {
+    try {
+        const client = await pool.connect();
+        console.log("Conexão bem-sucedida ao banco de dados!");
+        client.release(); // Libera o cliente após a conexão
+    } catch (err) {
+        console.error("Erro ao conectar ao banco de dados:", err);
+    }
+})();
+
+
+/*PGHOST=ep-cool-darkness-123456.us-east-2.aws.neon.tech
+PGDATABASE=dbname
+PGUSER=alex
+PGPASSWORD=AbC123dEf
+PGPORT=5432 */
 pool.connect();
 
 const users = [];
