@@ -15,6 +15,14 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
+const allowedOrigins = ['https://conect-beauty-app.vercel.app'];
+
+app.use(cors({
+    origin: allowedOrigins,
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true, // Se você estiver usando cookies ou autenticação
+}));
+
 require('dotenv').config();
 
 const PORT = 3030;
