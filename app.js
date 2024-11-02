@@ -15,13 +15,37 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-const allowedOrigins = ['https://conect-beauty-app.vercel.app'];
-
 const corsOptions = {
     origin: 'https://conect-beauty-app.vercel.app/', // Altere isso para o domínio correto
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true, // Se você precisar enviar cookies ou cabeçalhos de autenticação
 };
+
+const allowCors = fn => async (req, res) => {
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Origin', 'https://conect-beauty-app.vercel.app'); // Permitir apenas a origem específica
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+    );
+  
+    // Se a requisição for do tipo OPTIONS, finalize a resposta
+    if (req.method === 'OPTIONS') {
+      res.status(200).end();
+      return;
+    }
+  
+    return await fn(req, res);
+  };
+  
+  const handler = (req, res) => {
+    const d = new Date();
+    res.end(d.toString());
+  };
+  
+  module.exports = allowCors(handler);
+  
 
 require('dotenv').config();
 
