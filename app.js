@@ -794,4 +794,13 @@ app.post('/upload', upload.single('image'), (req, res) => {
 });
 
 
+
+export default function handler(req, res) {
+    if (req.url === '/favicon.ico') {
+        res.status(204).end(); // Retorna um status 204 sem conteúdo
+    } else {
+        // Lógica para outras rotas
+    }
+}
+
 module.exports = app;
