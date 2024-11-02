@@ -5,7 +5,9 @@ function authenticateUser(){
     senha: document.getElementById("senha").value
   };
   
-  fetch('http://localhost:3030/login', {
+  const URLAPI = "https://app-agendamento-sigma.vercel.app"
+
+  fetch(`${URLAPI}/login`, {
     method: 'POST',
     headers: {
         'Content-Type': 'application/json'
