@@ -773,3 +773,4 @@ app.post('/upload', upload.single('image'), (req, res) => {
 });
 
 
+module.exports = app;
