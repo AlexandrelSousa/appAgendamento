@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conect Beauty Login</title>
+    <link rel="stylesheet" type="text/css" href="./css/index.css">
+    <script src="./js/index.js"></script>
+    <link rel="shortcut icon" type="imagex/png" href="./assets/logo3.ico">
+</head>
+<body>
+    <div class="linha-horizontal"></div>
+    <div class="login-box">
+        <div class="login-box-line">
+            <div class="login-box-titulo"><h1>LOGIN</h1></div>
+            <div class="login-box-login">
+                <label class="login-box-login-icon"><img src="./assets/user-icon.png"></label>
+                <input class="login-box-login-input" placeholder="EMAIL / CNPJ" id="email">
+            </div>
+            <div class="login-box-senha">
+                <label class="login-box-senha-icon"><img src="./assets/password-icon.png"></label>
+                <input type="password" class="login-box-senha-input" placeholder="SENHA" id="senha">
+            </div>
+            <div class="login-box-esquecisenha">
+                <p class="login-box-esquecisenha-p"><label onclick="replaceCadastro()">CADASTRAR CLIENTE</label></p>
+                <p class="login-box-esquecisenha-p"><label onclick="replaceCadastroEmpresa()">CADASTRAR EMPRESA</label></p>
+            </div>
+            <div class="login-box-buttom"><button onclick="authenticateUser()">ENTRAR</button></div>
+        </div>
+    </div>
+    <div class="fundo-escuro-erro" id="fundo-escuro-erro">
+        <div class="erro-box">
+            <div class="erro-box-titulo">
+                <h2>ERRO</h2>
+            </div>
+            <div class="erro-box-texto">
+                <p id="fundo-escuro-erro-texto"></p>
+            </div>
+            <div class="erro-box-botao">
+                <button onclick="fecharBoxErro()">OK</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

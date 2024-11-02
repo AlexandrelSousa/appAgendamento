@@ -1,0 +1,307 @@
+:root {
+    --main-color1: #1b191a;
+    --main-color2: #88616d;
+    --main-color3: #f7abc2;
+    --main-color4: #f5c2c7;
+    --main-color5: #f5dacd;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body{
+    background-image: url(../assets/BG.png);
+    background-repeat: repeat;
+    background-size: 250px;
+    display: flex;
+    justify-content: center;
+}
+
+.linha-horizontal{
+    background-color: var(--main-color3);
+    width: 100%;
+    height: 20%;
+    position: absolute;
+    top: 40%;
+    z-index: -1;
+}
+
+.login-box{
+    background-color: #fff;
+    width: 325px;
+    height: 65%;
+    position: absolute;
+    z-index: 1;
+    top: 17.5%;
+    border-radius: 30px;
+    box-shadow: 0px 0px 15px var(--main-color2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.login-box-line{
+    background-color: #fff;
+    border: solid 3px var(--main-color1);
+    width: 95%;
+    height: 95%;
+    border-radius: 30px;
+    display: flex;
+    align-content: space-around;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    flex-direction: column;
+    padding-top: 3%;
+    padding-bottom: 3%;
+}
+.login-box-line div {
+    width: 88%;
+    height: 12%;
+}
+.login-box-titulo{
+    color: #1b191a;
+    font-family: sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.login-box-titulo h1{
+    left: 1.5%;
+    font-weight: bolder;
+    text-align: center;
+    position: relative;
+    font-size: 22pt;
+    letter-spacing: 0.1em;
+}
+.login-box-login, .login-box-senha{
+    display: flex;
+    flex-direction: row;
+}
+.login-box-login-icon, .login-box-senha-icon{
+    height: 100%;
+    width: 20%;
+    background-color: #fff;
+    border: 3px solid var(--main-color1);
+    border-radius: 10px 0px 0px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.login-box-login-icon img{
+    width: 50%;
+}
+.login-box-senha-icon img{
+    width: 50%;
+}
+.login-box-login-input, .login-box-senha-input{
+    height: 100%;
+    width: 80%;
+    background-color: #fff;
+    border: 3px solid var(--main-color1);
+    border-left: 0px;
+    border-radius: 0px 10px 10px 0px;
+    font-size: large;
+    font-family: sans-serif;
+    color: var(--main-color1);
+    padding-left: 10px;
+    accent-color: var(--main-color1);
+}
+.login-box-login-input::placeholder{
+    letter-spacing: 0.2em;
+}
+.login-box-senha-input::placeholder{
+    letter-spacing: 0.2em;
+}
+.login-box-login-input:focus-visible, .login-box-senha-input:focus-visible{
+    outline-offset: none;
+    outline: none;
+}
+.login-box-esquecisenha{
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+    font-family: sans-serif;
+    font-size: 15px;
+}
+.login-box-esquecisenha p{
+    letter-spacing: 0.1em;
+}
+.login-box-esquecisenha p input{
+    margin-right: 5px;
+    accent-color: var(--main-color1);
+}
+.login-box-buttom{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.buttonControlPage{
+    background-color: var(--main-color1);
+    width: 30%;
+    height: 100%;
+    border: none;
+    border-radius: 10px;
+    font-size: large;
+    color: #fff;
+    font-family: sans-serif;
+    letter-spacing: 0.2em;
+}
+
+.OKButton:disabled{
+    background-color: #dddddd;
+    color: #1b191a;
+}
+
+.buttonControlPage:disabled{
+    background-color: #dddddd;
+    color: #1b191a;
+}
+
+.OKButton{
+    width: 30%;
+    height: 100%;
+    background-color: var(--main-color1);
+    border-top: 0px;
+    border-bottom: 0px;
+    margin-right: 5%;
+    margin-left: 5%;
+    border-radius: 10px;
+    font-size: large;
+    color: #fff;
+    font-family: sans-serif;
+    letter-spacing: 0.2em;
+}
+
+.login-box-funcionamento-titulo{
+    width: 90%;
+    height: 30% !important;
+}
+.login-box-funcionamento-titulo2{
+    width: 90%;
+    height: 45% !important;
+}
+.login-box-funcionamento{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    align-content: space-between;
+    justify-content: center;
+    border: 2px solid #1b191a;
+    border-radius: 10px;
+    height: 30% !important;
+}
+
+.login-box-logo{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    align-content: space-between;
+    justify-content: center;
+    border: 2px solid #1b191a;
+    border-radius: 10px;
+    height: 70% !important;
+}
+
+.login-box-logo h2{
+    font-size:medium;
+    font-family: sans-serif;
+    color: var(--main-color1);
+}
+
+#logo-img{
+    object-fit: cover;
+    object-position: center;
+}
+
+.login-box-logo-imagem{
+    display: flex;
+    flex-direction: row;
+    height: 80% !important;
+    width: 90% !important;
+    justify-content: space-between;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+
+.login-box-logo-input{
+    display: flex;
+    flex-direction: row;
+    height: 15% !important;
+    width: 90% !important;
+    justify-content: space-between;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.login-box-logo-titulo{
+    width: 90%;
+    height: 15% !important;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.login-box-funcionamento h2{
+    font-size:medium;
+    font-family: sans-serif;
+    color: var(--main-color1);
+}
+
+.login-box-funcionamento-dias{
+    display: flex;
+    flex-direction: row;
+    height: 30% !important;
+    width: 90% !important;
+    justify-content: space-between;
+}
+.login-box-funcionamento-horas{
+    display: flex;
+    flex-direction: row;
+    height: 45% !important;
+    width: 90% !important;
+    justify-content: space-between;
+    align-items: center;
+}
+.login-box-funcionamento-checks{
+    display: flex;
+    flex-direction: row;
+    height: 30% !important;
+    width: 90% !important;
+    justify-content: space-between;
+}
+.login-box-dias-dia{
+    font-size: smaller;
+}
+.login-box-login-input:focus-visible{
+    outline-offset: none;
+    outline: none;
+}
+
+.descricao{
+    color: var(--main-color1);
+    font-size: 15pt;
+    border: 3px solid var(--main-color1);
+    border-radius: 0px 10px 10px 0px;
+    border-left: 0px;
+    width: 80%;
+    padding: 4%;
+}
+.descricao::placeholder{
+    position: absolute;
+    left: 4%;
+    top: 40%;
+    font-family: sans-serif;
+    letter-spacing: 0.2em;
+    font-size: large;
+}
+.descricao:focus-visible{
+    outline: none;
+}
