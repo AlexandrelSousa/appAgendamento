@@ -56,12 +56,6 @@ const pool = new Pool({
     }
 })();
 
-
-/*PGHOST=ep-cool-darkness-123456.us-east-2.aws.neon.tech
-PGDATABASE=dbname
-PGUSER=alex
-PGPASSWORD=AbC123dEf
-PGPORT=5432 */
 pool.connect();
 
 const users = [];
