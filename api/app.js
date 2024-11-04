@@ -80,10 +80,6 @@ app.get('/', (req, res) => {
     res.send('Bem-vindo ao app de agendamento!')
 });
 
-app.listen(PORT, () => {
-    console.log(`Servidor inicializado na porta ${PORT}`)
-})
-
 app.post('/login', async (req, res) => {
     const {emailOuCNPJ, senha} = req.body;
 
