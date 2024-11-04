@@ -19,7 +19,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "node app.js",
     "start": "node app.js",
-    "build": "echo 'No build necessary for serverless functions'"
+    "build": "echo 'No build necessary for serverless functions'",
+    "vercel-build": "zenstack generate && tsc && prisma db push && tsx prisma/seed.ts"
   },
   "keywords": [],
   "author": "",
